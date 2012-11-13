@@ -1,4 +1,4 @@
 Highscore-Server
 ================
 
-General purpose highscore hosting server for mobile applications.
+Highscore server for http://github.com/CS340/PuzzleApp
