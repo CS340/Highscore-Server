@@ -5,7 +5,7 @@ import (
 	"os"
 	"fmt"
 	"strings"
-	"github.com/thoj/Go-MySQL-Client-Library"
+	"github.com/thoj/go-mysqlpure"
 	"time"
 	//"bytes"
 )
@@ -76,7 +76,7 @@ func parseCommand(com string) (string){
 
 	var response string
 	
-	dataCon, err := mysql.Connect("tcp", "127.0.0.1:3306", "highscores", "hhss", "highscores")
+	dataCon, err := mysql.Connect("tcp", "127.0.0.1:3306", "hhss", "highscores", "hhss")
 	errorCheck(err, "Could not connect to MySQL database.")
 	
 	scores := new(mysql.MySQLResponse)
@@ -103,29 +103,16 @@ func parseCommand(com string) (string){
 					scores, err = dataCon.Query("SELECT * FROM scores ORDER BY score DESC")
 					errorCheck(err, "Could not get scores from database. USER: " + parts[2])
 					fmt.Println(parts[2])
-					//if parts[2] == "all" {
-						response = "score:all:"
-						i := 0
-						for row := scores.FetchRowMap(); row != nil && i < 9; row = scores.FetchRowMap() {
-								response += row["username"] + "," + row["score"] + ";"
-								i += 1
-						}
-						fmt.Println(response)
-					/*} else {
-							response = "score:" + parts[2] + ":111"
-							for row := scores.FetchRowMap(); row != nil; row = scores.FetchRowMap() {
-								if row["username"] == parts[2] {
-									response += row["score"] + ";"
-								}
-							}
-							fmt.Println(response)
-					}*/
+					response = "score:all:"
+					i := 0
+					for row := scores.FetchRowMap(); row != nil && i < 9; row = scores.FetchRowMap() {
+							response += row["username"] + "," + row["score"] + ";"
+							i += 1
+					}
+					fmt.Println(response)
 			}
 	}
 	dataCon.Quit();
 
 	return response
-	// WHERE `username` = 'aphelps'
-
-	//WHERE username='" + parts[2] + "' 
 }
