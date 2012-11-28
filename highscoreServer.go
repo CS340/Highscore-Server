@@ -7,7 +7,7 @@ import (
 	"strings"
 	"github.com/thoj/go-mysqlpure"
 	"time"
-	//"bytes"
+	"bytes"
 )
 
 func main() {
@@ -73,43 +73,78 @@ func errorCheck(err error, message string){
 }
 
 func parseCommand(com string) (string){
-
+	com = string(bytes.TrimRight([]byte(com), string(byte(0))))
+	com = strings.Replace(com, "\n", "", -1)
 	var response string
-	
+	fmt.Println("COMMAND:"+com)
 	dataCon, err := mysql.Connect("tcp", "127.0.0.1:3306", "hhss", "highscores", "hhss")
 	errorCheck(err, "Could not connect to MySQL database.")
 	
 	scores := new(mysql.MySQLResponse)
+	checker := new(mysql.MySQLResponse)
 
 	parts := strings.Split(com, ":")
-
 	switch parts[0]{
 		case "user": 
 			switch parts[1]{
 				case "new":
-					logIt("QUERY", "Inserting new user " + parts[2] + " " + parts[3] + ", " + parts[4])
-					_, err = dataCon.Query("INSERT INTO users (firstName,lastName,username) VALUES('" + parts[2] + "', " + parts[3] + "', " + parts[4] + ")")
-					errorCheck(err, "Could not enter new user into database. USER: " + parts[2])
+					checker, err = dataCon.Query("SELECT username FROM users WHERE username='" + parts[2] + "';")
+					if len(checker.FetchRowMap()) == 0{
+						logIt("QUERY", "Inserting new user " + parts[2] + " " + parts[4] + ", " + parts[3])
+						_, err = dataCon.Query("INSERT INTO users (firstName,lastName,username) VALUES('" + parts[3] + "', '" + parts[4] + "', '" + parts[2] + "')")
+						if(err != nil){
+							errorCheck(err, "Could not enter new user into database. USER: " + parts[2])
+							response = "user:new:failure (reason unknown)\n"
+						} else{
+							response = "user:new:success\n"
+						}
+
+					} else {
+						response = "user:exists\n";
+					}
 			}
 		case "score":
 			switch parts[1]{
 				case "new":
-					logIt("QUERY", "Inserting new score of " + parts[3] + " for " + parts[2])
-					_, err = dataCon.Query("INSERT INTO scores (username,score) VALUES('" + parts[2] + "', " + parts[3] + ")")
-					errorCheck(err, "Could not enter score into database. USER: " + parts[2] + "SCORE:" + parts[3])
-				case "get":
-					logIt("QUERY", "Reading scores for " + parts[2])
-					fmt.Println("SELECT * FROM scores ORDER BY score DESC")
-					scores, err = dataCon.Query("SELECT * FROM scores ORDER BY score DESC")
-					errorCheck(err, "Could not get scores from database. USER: " + parts[2])
-					fmt.Println(parts[2])
-					response = "score:all:"
-					i := 0
-					for row := scores.FetchRowMap(); row != nil && i < 9; row = scores.FetchRowMap() {
-							response += row["username"] + "," + row["score"] + ";"
-							i += 1
+					checker, err = dataCon.Query("SELECT username FROM users WHERE username='" + parts[2] + "';")
+					if len(checker.FetchRowMap()) > 0 {
+						logIt("QUERY", "Inserting new score of " + parts[3] + " for " + parts[2])
+						_, err = dataCon.Query("INSERT INTO scores (username,score) VALUES('" + parts[2] + "', " + parts[3] + ")")
+						errorCheck(err, "Could not enter score into database. USER: " + parts[2] + "SCORE:" + parts[3])
+						response = "score:added\n"
+					} else {
+						response = "score:user does not exist\n";
 					}
-					fmt.Println(response)
+				case "get":
+					parts[2] = string(bytes.TrimRight([]byte(parts[2]), string(byte(0))))
+					if parts[2] == "all" { 
+						logIt("QUERY", "Reading scores for " + parts[2])
+						scores, err = dataCon.Query("SELECT * FROM scores ORDER BY score DESC")
+						errorCheck(err, "Could not get scores from database. USER: " + parts[2])
+						response = "score:all:"
+						i := 0
+						for row := scores.FetchRowMap(); row != nil && i < 10; row = scores.FetchRowMap() {
+								response += row["username"] + "," + row["score"] + ";"
+								i += 1
+						}
+						response += "\n"
+						fmt.Println(response)
+					} else {
+						logIt("QUERY", "Reading scores for " + parts[2])
+						scores, err = dataCon.Query("SELECT * FROM scores ORDER BY score DESC")
+						errorCheck(err, "Could not get scores from database. USER: " + parts[2])
+						//fmt.Println(len("ll"))
+						response = "score:" + parts[2] + ":"
+						i := 0
+						for row := scores.FetchRowMap(); row != nil && i < 10; row = scores.FetchRowMap() {
+							if row["username"] == parts[2] {
+								response += row["username"] + "," + row["score"] + ";"
+								i += 1
+							}
+						}
+						response += "\n"
+						fmt.Println(response)
+					}
 			}
 	}
 	dataCon.Quit();
